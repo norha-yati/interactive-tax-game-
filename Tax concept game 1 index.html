@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Malaysian Tax Bubble Pop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #009688, #4CAF50);
+            overflow: hidden;
+            margin: 0;
+            height: 100vh;
+            touch-action: manipulation;
+        }
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            padding: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: float 3s infinite alternate ease-in-out;
+            user-select: none;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+        @keyframes float {
+            0% { transform: translateY(0) scale(1); }
+            100% { transform: translateY(-20px) scale(1.05); }
+        }
+        .pop {
+            animation: pop 0.3s ease-out forwards;
+        }
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        .game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .tax-fact {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container" id="gameContainer">
+        <div class="absolute top-4 left-4 right-4 flex justify-between items-center bg-white bg-opacity-90 rounded-lg p-3 shadow-lg z-10">
+            <div class="text-green-800 font-bold text-xl">Score: <span id="score">0</span></div>
+            <div class="text-center">
+                <h1 class="text-green-800 font-bold text-xl md:text-2xl">Malaysian Tax Bubble Pop</h1>
+                <p class="text-sm text-green-700">Pop tax-related bubbles to learn & earn points!</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-green-800 font-bold text-xl">Time: <span id="timer">45</span>s</div>
+                <button id="downloadBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    Download Game
+                </button>
+            </div>
+        </div>
+        <div id="taxFact" class="tax-fact hidden">
+            <p id="factText" class="text-green-800 font-medium"></p>
+        </div>
+        
+        <div id="gameOverScreen" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 z-20">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4">
+                <h2 class="text-3xl font-bold text-center text-green-800 mb-4">Game Over!</h2>
+                <p class="text-xl text-center mb-2">Your final score: <span id="finalScore" class="font-bold text-green-600">0</span></p>
+                <p class="text-center mb-6 text-gray-600">You've learned about Malaysian taxation while having fun!</p>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <button id="playAgainBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                        Play Again
+                    </button>
+                    <button id="downloadGameBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                        Download Game
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameContainer = document.getElementById('gameContainer');
+            const scoreElement = document.getElementById('score');
+            const timerElement = document.getElementById('timer');
+            const gameOverScreen = document.getElementById('gameOverScreen');
+            const finalScoreElement = document.getElementById('finalScore');
+            const playAgainBtn = document.getElementById('playAgainBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const downloadGameBtn = document.getElementById('downloadGameBtn');
+            const taxFact = document.getElementById('taxFact');
+            const factText = document.getElementById('factText');
+            
+            let score = 0;
+            let timeLeft = 45;
+            let gameInterval;
+            let bubbleInterval;
+            let gameActive = false;
+            
+            // Colors for bubbles
+            const colors = [
+                '#00796B', '#388E3C', '#1976D2', '#7B1FA2', '#C2185B', 
+                '#FBC02D', '#E64A19', '#5D4037', '#455A64', '#0097A7'
+            ];
+            // Malaysian tax facts and terms
+            const taxItems = [
+                { term: "PCB", points: 3, fact: "PCB (Potongan Cukai Bulanan) is Malaysia's monthly tax deduction system from employment income." },
+                { term: "LHDN", points: 2, fact: "LHDN (Lembaga Hasil Dalam Negeri) is Malaysia's Inland Revenue Board." },
+                { term: "SST", points: 4, fact: "Sales and Service Tax (SST) replaced GST in Malaysia in September 2018." },
+                { term: "Form BE", points: 3, fact: "Form BE is for Malaysian residents with employment income." },
+                { term: "Form B", points: 5, fact: "Form B is for Malaysian residents with business income." },
+                { term: "Form M", points: 4, fact: "Form M is for non-resident individuals in Malaysia." },
+                { term: "Tax Relief", points: 2, fact: "Malaysia offers various tax reliefs including for medical expenses and education." },
+                { term: "RPGT", points: 5, fact: "Real Property Gains Tax (RPGT) applies to profits from property sales in Malaysia." },
+                { term: "e-Filing", points: 1, fact: "e-Filing allows Malaysians to submit tax returns electronically." },
+                { term: "Tax Bracket", points: 3, fact: "Malaysia uses a progressive tax system with rates from 0% to 30%." },
+                { term: "EPF Relief", points: 4, fact: "Contributions to EPF (Employees Provident Fund) qualify for tax relief in Malaysia." },
+                { term: "SOCSO", points: 2, fact: "SOCSO contributions are eligible for tax deductions in Malaysia." },
+                { term: "Zakat", points: 5, fact: "Zakat payments can be deducted from income tax in Malaysia." },
+                { term: "Tax Audit", points: 4, fact: "LHDN conducts tax audits to ensure compliance with Malaysian tax laws." },
+                { term: "Tax Exemption", points: 3, fact: "Certain types of income are tax-exempt in Malaysia, like some government pensions." }
+            ];
+            function startGame() {
+                score = 0;
+                timeLeft = 45;
+                scoreElement.textContent = score;
+                timerElement.textContent = timeLeft;
+                gameOverScreen.classList.add('hidden');
+                taxFact.classList.add('hidden');
+                
+                // Clear any existing bubbles
+                document.querySelectorAll('.bubble').forEach(bubble => bubble.remove());
+                
+                gameActive = true;
+                
+                // Create bubbles at regular intervals
+                bubbleInterval = setInterval(createBubble, 1000);
+                
+                // Update timer
+                gameInterval = setInterval(() => {
+                    timeLeft--;
+                    timerElement.textContent = timeLeft;
+                    
+                    if (timeLeft <= 0) {
+                        endGame();
+                    }
+                }, 1000);
+            }
+            function createBubble() {
+                if (!gameActive) return;
+                
+                const bubble = document.createElement('div');
+                bubble.classList.add('bubble');
+                
+                // Random size between 70 and 120px
+                const size = Math.floor(Math.random() * 50) + 70;
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                
+                // Random position
+                const maxX = gameContainer.clientWidth - size;
+                const maxY = gameContainer.clientHeight - size;
+                const x = Math.floor(Math.random() * maxX);
+                const y = Math.floor(Math.random() * maxY);
+                
+                bubble.style.left = `${x}px`;
+                bubble.style.top = `${y}px`;
+                
+                // Random color
+                const colorIndex = Math.floor(Math.random() * colors.length);
+                bubble.style.backgroundColor = colors[colorIndex];
+                
+                // Random tax item
+                const taxItem = taxItems[Math.floor(Math.random() * taxItems.length)];
+                bubble.innerHTML = `<div>${taxItem.term}<br>(${taxItem.points} pts)</div>`;
+                
+                // Random animation duration
+                const animDuration = Math.random() * 2 + 2;
+                bubble.style.animationDuration = `${animDuration}s`;
+                // Pop bubble on click
+                bubble.addEventListener('click', () => {
+                    if (!gameActive) return;
+                    
+                    score += taxItem.points;
+                    scoreElement.textContent = score;
+                    
+                    // Show tax fact
+                    factText.textContent = taxItem.fact;
+                    taxFact.classList.remove('hidden');
+                    setTimeout(() => {
+                        taxFact.classList.add('hidden');
+                    }, 3000);
+                    
+                    bubble.classList.add('pop');
+                    setTimeout(() => {
+                        bubble.remove();
+                    }, 300);
+                });
+                
+                gameContainer.appendChild(bubble);
+                
+                // Remove bubble after some time if not clicked
+                setTimeout(() => {
+                    if (bubble.parentNode === gameContainer) {
+                        bubble.remove();
+                    }
+                }, 6000);
+            }
+
+            function endGame() {
+                gameActive = false;
+                clearInterval(gameInterval);
+                clearInterval(bubbleInterval);
+                
+                finalScoreElement.textContent = score;
+                gameOverScreen.classList.remove('hidden');
+                taxFact.classList.add('hidden');
+            }
+            
+            playAgainBtn.addEventListener('click', startGame);
+            
+            // Function to download the game
+            function downloadGame() {
+                const htmlContent = document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'malaysian-tax-bubble-pop.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            downloadBtn.addEventListener('click', downloadGame);
+            downloadGameBtn.addEventListener('click', downloadGame);
+            // Start the game when the page loads
+            startGame();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                // Keep bubbles within the new container size
+                document.querySelectorAll('.bubble').forEach(bubble => {
+                    const size = parseInt(bubble.style.width);
+                    const maxX = gameContainer.clientWidth - size;
+                    const maxY = gameContainer.clientHeight - size;
+                    
+                    let x = parseInt(bubble.style.left);
+                    let y = parseInt(bubble.style.top);
+                    
+                    if (x > maxX) x = maxX;
+                    if (y > maxY) y = maxY;
+                    
+                    bubble.style.left = `${x}px`;
+                    bubble.style.top = `${y}px`;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
